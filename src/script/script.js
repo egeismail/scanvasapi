@@ -34,7 +34,7 @@ class SCAPI{
         this._zoom = 1
         this.frametime = 0
         this.FPS = 0
-        /**
+        /**@
          * 
          */
         this.entityList = []
