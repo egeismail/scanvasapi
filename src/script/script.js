@@ -7,7 +7,11 @@
 class SCEntity{
     /**@type {{parent:SCAPI,pos:Vector}} SCEntityOptions */
     constructor({parent,pos} = options){
-
+        /**@type {SCAPI} */
+        this.parent = parent
+        this.pos = pos
+    }
+    draw(){
     }
 }
 class SCAPI{
