@@ -62,9 +62,10 @@ class SCEntity{
     }
     objects = {
         rectangle:{
-            setup:()=>{
-                this.width = 100
-                this.height = 100
+            setup:(width=100,height=100,color="#00ff00")=>{
+                this.width = width
+                this.height = height
+                this.color = color
                 this.registerCollider((pos)=>{
                     let xC = this.pos.x<=pos.x && pos.x<=this.pos.x+this.width
                     let yC = this.pos.y<=pos.y && pos.y<=this.pos.y+this.height
@@ -74,7 +75,7 @@ class SCEntity{
             },
             execute:()=>{
                 let ctx = this.parent.context
-                ctx.fillStyle = "rgba(255,0,0,1)"
+                ctx.fillStyle = this.color
                 let hsz = this.height*this.parent.zoom
                 let wsz =this.width*this.parent.zoom 
                 ctx.fillRect(

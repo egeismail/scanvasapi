@@ -2,17 +2,16 @@
 * @typedef {import('./scapi')}
 */
 
+
 $(document).ready(()=>{
     let target = document.querySelector("canvas#testCanvas")
     
  console.log("Attaching to ",target)
-    window.scapi = new SCAPI({
+    let scapi = window.scapi = new SCAPI({
         target:target,
-        width:800,
-        height:800
+        width:600,
+        height:600
     })
-    let scapi = window.scapi
-    let e1 = new SCEntity({parent:window.scapi,pos:new Vector(100,100)});
-    e1.objects.rectangle.setup()
-    e1.init()
+    loadScene(window.scapi,1);
+    console.log("gds",scapi.guideLines)
 })

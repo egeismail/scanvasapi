@@ -3,6 +3,7 @@
 @typedef {import("./jquery")} JQuery
 @typedef {import("./vector")} Vector
 @typedef {import("./scapi.entity")}
+@typedef {import("./scapi.guideline")}
 **/
 
 /**
@@ -57,9 +58,12 @@ class SCAPI{
         /**@type {SCEntity[]}*/
         this.entityList = []
         this.entityIdCounter = 0
+        this.guideLineIdCounter = 0
         /**@type {Function[]} */ this.debugTexts = []
         this.debugTexts.push(()=>`Frametime : ${this.frametime} ms`)
         this.debugTexts.push(()=>`FPS : ${this.FPS}`)
+        /**@type {SCGuideline[]}*/
+        this.guideLines = []
         this.initialize()
     }
     initialize(){
@@ -88,12 +92,23 @@ class SCAPI{
      * @param {SCEntity} ent 
      */
     registerEntity(ent){
-        ent.id = ent.parent.entityIdCounter++;
+        ent.id = this.entityIdCounter++;
         ent._pos[2] = ent.id
         ent.pos = ent._pos
         this.entityList.push(ent)
         this.events.updateWatchList()
         this._draw.draw()
+    }
+    /**
+     * 
+     * @param {SCGuideline} gl 
+     */
+    registerGuideline(gl){
+        gl.id = this.guideLineIdCounter++;
+        this.guideLines.push(gl)
+        if(!gl.temporary)
+            this._draw.draw();
+    
     }
     utils = {
         fitOrigin:()=>{
@@ -128,7 +143,7 @@ class SCAPI{
         /**@param {Vector} pos */
         viewToClient: (pos)=>{
             return {
-                x:this.width-(this.origin.x-pos.x*this.zoom),
+                x:pos.x*this.zoom+this.origin.x,
                 y:this.origin.y-pos.y*this.zoom
             }
         },
@@ -201,12 +216,21 @@ class SCAPI{
                 entity.draw()
             }
         },
+        drawGuidelines:()=>{
+            for (let index = 0; index < this.guideLines.length; index++) {
+                const guideline = this.guideLines[index];
+                guideline.draw()
+            }
+            this.guideLines = this.guideLines.filter(g=>!g.temporary)
+
+        },
         draw:()=>{
             let stime = performance.now()
             this.context.fillStyle = "#000"
             this.context.fillRect(0,0,this.width,this.height)
             this._draw.makeGrid()
             this._draw.drawOrigin()
+            this._draw.drawGuidelines()
             this._draw.drawEntities()
             this._draw.drawDebugTexts()
             let etime = performance.now()
@@ -329,6 +353,40 @@ class SCAPI{
         let isEntityDragging = false
         let draggingPosition =null
         let draggingOffset =null
+        let recommendedCeils = [10,100]
+        let magnetise = (targetPos,ferroPercent=0.3,ceilBase=recommendedCeils[0])=>{
+            let bX = targetPos.x/ceilBase,
+                bY = targetPos.y/ceilBase
+            let recommendedX = Math.round(bX)*ceilBase
+            let recommendedY = Math.round(bY)*ceilBase 
+            let rPX = Math.min(bX-Math.floor(bX),1-(bX-Math.floor(bX))) // As Percent
+            let rPY = Math.min(bY-Math.floor(bY),1-(bX-Math.floor(bY))) // As Percent
+            if(rPX < ferroPercent){
+                targetPos[0] = recommendedX;
+                /**@type {SCGuidelineOptions}*/let options = {
+                    parent:this,
+                    midpos:targetPos,
+                    dimensional:true,
+                    dimension:1,
+                    temporary:true
+                }
+                let guideline = new SCGuideline(options);
+                guideline.init()
+            }
+            if(rPY < ferroPercent){
+                targetPos[1] = recommendedY;
+                /**@type {SCGuidelineOptions}*/let options = {
+                    parent:this,
+                    midpos:targetPos,
+                    dimensional:true,
+                    dimension:0,
+                    temporary:true
+                }
+                let guideline = new SCGuideline(options);
+                guideline.init()
+            }
+            return targetPos
+        }
         //Entity dragging
         this.registerMouseEvent({
             mousedown:(e)=>{
@@ -355,15 +413,20 @@ class SCAPI{
                     // Entity must close
                     isEntityDragging = false
                     this.setCursor("grab")
+                    this._draw.draw()
                 }
 
             },
             mousemove:(e)=>{
+                // let clientToViewTest = this.utils.clientToView(e.offsetX,e.offsetY)
+                // let viewToClientTest = this.utils.viewToClient(clientToViewTest)
+                // console.log(viewToClientTest.x,viewToClientTest.y)
                 //Hovering
                 if(SelectedEntity !== null && isEntityDragging){
                     // Entity Dragging State
                     let pos = this.utils.clientToView(e.offsetX,e.offsetY)
-                    SelectedEntity.pos = pos.sub(draggingOffset)
+                    let targetPos =magnetise(pos.sub(draggingOffset))
+                    SelectedEntity.pos = targetPos
                 }else{
                     // Hovering state
                     let pos = this.utils.clientToView(e.offsetX,e.offsetY)
@@ -412,7 +475,7 @@ class SCAPI{
             },
             mouseup:(e)=>{
                 if(e.which!==2)return;
-                this.setCursorDefaultState()
+                this.setCursor("default")
                 isDragOpen = false
                 se_x = e.offsetX-sx
                 se_y = e.offsetY-sy
@@ -429,8 +492,8 @@ class SCAPI{
                 if(e.originalEvent.deltaY < 0){
                     // wheeled up
                     this.zoom = this.zoom/0.818933027098955175
-                    if(!e.shiftKey)
-                    this.utils.setOriginByPos(pos);
+                    // if(!e.shiftKey)
+                    // this.utils.setOriginByPos(pos);
                 }
                 else {
                     // wheeled down
